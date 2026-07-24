@@ -1,0 +1,13 @@
+node_modules/
+coverage/
+dist/
+
+# Material de referencia interno da firma - nao publicar no repositorio publico
+6. Simulador Simples Nacional/
+
+# Notas internas de desenvolvimento - ficam no PC, fora do repo publico
+AGENTS.md
+HANDOFF.md
+CHANGELOG.md
+docs/
+

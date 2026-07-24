@@ -1,0 +1,10 @@
+# Normaliza quebras de linha: LF no repositorio para textos.
+* text=auto eol=lf
+
+# Scripts do Windows continuam com CRLF.
+*.bat text eol=crlf
+
+# Binarios: nunca alterar.
+*.ico binary
+*.png binary
+*.xlsx binary

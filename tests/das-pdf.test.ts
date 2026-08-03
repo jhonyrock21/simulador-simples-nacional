@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { zlibSync } from "fflate";
 
 import { extractPdfTextLines, parseDasTextLines } from "../src/das-pdf";
 
@@ -153,4 +154,48 @@ endobj
     expect(lines).toContain("Extrato do Simples Nacional");
     expect(lines).toContain("Nome Empresarial: STREAM BOM LTDA");
   });
+
+  it("descompacta FlateDecode com fallback JavaScript local", async () => {
+    const body = [
+      "BT",
+      "(Extrato do Simples Nacional)Tj",
+      "(Nome Empresarial: PDF COMPACTADO LTDA)Tj",
+      "(Periodo de Apuracao \\(PA\\): 06/2026)Tj",
+      "ET",
+    ].join("\n");
+    const compressed = zlibSync(new TextEncoder().encode(body));
+    const pdf = concatBytes(
+      new TextEncoder().encode(`%PDF-1.4
+1 0 obj
+<< /Filter /FlateDecode /Length ${compressed.length} >>
+stream
+`),
+      compressed,
+      new TextEncoder().encode(`
+endstream
+endobj
+%%EOF`),
+    );
+
+    const lines = await extractPdfTextLines(toArrayBuffer(pdf));
+
+    expect(lines).toContain("Extrato do Simples Nacional");
+    expect(lines).toContain("Nome Empresarial: PDF COMPACTADO LTDA");
+    expect(lines).toContain("Periodo de Apuracao (PA): 06/2026");
+  });
 });
+
+function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}

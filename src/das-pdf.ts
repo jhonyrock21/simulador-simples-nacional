@@ -1,4 +1,5 @@
 import type { RevenueSegmentCode } from "./calc";
+import { decompressSync } from "fflate";
 import { parseMoneyToCents } from "./money";
 
 export interface ImportedActivity {
@@ -57,8 +58,7 @@ export async function extractPdfTextLines(
   buffer: ArrayBuffer,
   inflater: PdfInflater = inflatePdfStream,
 ): Promise<string[]> {
-  const binary = new TextDecoder("latin1").decode(buffer);
-  const streams = findPdfStreams(binary);
+  const streams = findPdfStreams(new Uint8Array(buffer));
   const lines: string[] = [];
 
   for (const stream of streams) {
@@ -68,8 +68,8 @@ export async function extractPdfTextLines(
         bytes = await inflater(bytes);
       }
       lines.push(...extractTextStrings(bytes));
-    } catch (error) {
-      if (isUnsupportedInflaterError(error)) throw error;
+    } catch {
+      // PDFs podem conter streams de imagem/metadados que nao ajudam no texto.
     }
   }
 
@@ -152,31 +152,35 @@ export function parseDasTextLines(rawLines: readonly string[]): DasPdfImportData
   };
 }
 
-function findPdfStreams(binary: string): { bytes: Uint8Array; flate: boolean }[] {
+const PDF_TOKEN_STREAM = asciiBytes("stream");
+const PDF_TOKEN_ENDSTREAM = asciiBytes("endstream");
+const PDF_TOKEN_DICT_START = asciiBytes("<<");
+
+function findPdfStreams(pdfBytes: Uint8Array): { bytes: Uint8Array; flate: boolean }[] {
   const streams: { bytes: Uint8Array; flate: boolean }[] = [];
   let cursor = 0;
-  while (cursor < binary.length) {
-    const streamIndex = binary.indexOf("stream", cursor);
+  while (cursor < pdfBytes.length) {
+    const streamIndex = indexOfBytes(pdfBytes, PDF_TOKEN_STREAM, cursor);
     if (streamIndex < 0) break;
-    let contentStart = streamIndex + "stream".length;
-    if (binary.slice(contentStart, contentStart + 2) === "\r\n") contentStart += 2;
-    else if (binary[contentStart] === "\n" || binary[contentStart] === "\r") contentStart += 1;
+    let contentStart = streamIndex + PDF_TOKEN_STREAM.length;
+    if (pdfBytes[contentStart] === 13 && pdfBytes[contentStart + 1] === 10) contentStart += 2;
+    else if (pdfBytes[contentStart] === 10 || pdfBytes[contentStart] === 13) contentStart += 1;
 
-    const dictionaryStart = binary.lastIndexOf("<<", streamIndex);
-    const dictionary = dictionaryStart >= 0 ? binary.slice(dictionaryStart, streamIndex) : "";
+    const dictionaryStart = lastIndexOfBytes(pdfBytes, PDF_TOKEN_DICT_START, streamIndex, cursor);
+    const dictionary = dictionaryStart >= 0 ? asciiFromBytes(pdfBytes.subarray(dictionaryStart, streamIndex)) : "";
     const declaredLength = pdfStreamLength(dictionary);
-    const fallbackEndIndex = binary.indexOf("endstream", contentStart);
+    const fallbackEndIndex = indexOfBytes(pdfBytes, PDF_TOKEN_ENDSTREAM, contentStart);
     const contentEnd = declaredLength !== null
-      ? Math.min(contentStart + declaredLength, binary.length)
-      : trimPdfStreamEnd(binary, fallbackEndIndex);
+      ? Math.min(contentStart + declaredLength, pdfBytes.length)
+      : trimPdfStreamEnd(pdfBytes, fallbackEndIndex);
 
     if (contentEnd < contentStart) break;
     streams.push({
-      bytes: bytesFromBinary(binary.slice(contentStart, contentEnd)),
+      bytes: pdfBytes.slice(contentStart, contentEnd),
       flate: /\/FlateDecode\b/.test(dictionary),
     });
-    const endIndex = binary.indexOf("endstream", contentEnd);
-    cursor = (endIndex >= 0 ? endIndex : contentEnd) + "endstream".length;
+    const endIndex = indexOfBytes(pdfBytes, PDF_TOKEN_ENDSTREAM, contentEnd);
+    cursor = (endIndex >= 0 ? endIndex : contentEnd) + PDF_TOKEN_ENDSTREAM.length;
   }
   return streams;
 }
@@ -186,44 +190,80 @@ function pdfStreamLength(dictionary: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-function trimPdfStreamEnd(binary: string, endIndex: number): number {
+function trimPdfStreamEnd(pdfBytes: Uint8Array, endIndex: number): number {
   if (endIndex < 0) return -1;
-  if (binary.slice(endIndex - 2, endIndex) === "\r\n") return endIndex - 2;
-  if (binary[endIndex - 1] === "\n" || binary[endIndex - 1] === "\r") return endIndex - 1;
+  if (pdfBytes[endIndex - 2] === 13 && pdfBytes[endIndex - 1] === 10) return endIndex - 2;
+  if (pdfBytes[endIndex - 1] === 10 || pdfBytes[endIndex - 1] === 13) return endIndex - 1;
   return endIndex;
 }
 
-function bytesFromBinary(value: string): Uint8Array {
+function asciiBytes(value: string): Uint8Array {
   const bytes = new Uint8Array(value.length);
   for (let index = 0; index < value.length; index += 1) {
-    bytes[index] = value.charCodeAt(index) & 0xff;
+    bytes[index] = value.charCodeAt(index);
   }
   return bytes;
 }
 
-async function inflatePdfStream(bytes: Uint8Array): Promise<Uint8Array> {
-  const streamConstructor = globalThis.DecompressionStream;
-  if (!streamConstructor) {
-    throw new Error("Este navegador nao suporta descompactar PDF localmente. Atualize o navegador ou preencha manualmente.");
-  }
-
-  try {
-    return await decompress(bytes, "deflate");
-  } catch {
-    return decompress(bytes, "deflate-raw");
-  }
+function asciiFromBytes(bytes: Uint8Array): string {
+  let output = "";
+  for (const byte of bytes) output += String.fromCharCode(byte);
+  return output;
 }
 
-async function decompress(bytes: Uint8Array, format: string): Promise<Uint8Array> {
+function indexOfBytes(source: Uint8Array, needle: Uint8Array, start: number): number {
+  const limit = source.length - needle.length;
+  for (let index = Math.max(0, start); index <= limit; index += 1) {
+    let matched = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (source[index + offset] !== needle[offset]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return index;
+  }
+  return -1;
+}
+
+function lastIndexOfBytes(source: Uint8Array, needle: Uint8Array, before: number, after = 0): number {
+  for (let index = Math.min(before, source.length - needle.length); index >= 0; index -= 1) {
+    if (index < after) break;
+    let matched = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (source[index + offset] !== needle[offset]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return index;
+  }
+  return -1;
+}
+
+async function inflatePdfStream(bytes: Uint8Array): Promise<Uint8Array> {
+  const streamConstructor = globalThis.DecompressionStream;
+  if (streamConstructor) {
+    try {
+      return await decompressWithBrowserStream(bytes, "deflate");
+    } catch {
+      try {
+        return await decompressWithBrowserStream(bytes, "deflate-raw");
+      } catch {
+        // Fallback pure JS para navegadores com Compression Streams incompleto.
+      }
+    }
+  }
+
+  return decompressSync(bytes);
+}
+
+async function decompressWithBrowserStream(bytes: Uint8Array, format: string): Promise<Uint8Array> {
   const ds = new DecompressionStream(format as CompressionFormat);
   const input = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(input).set(bytes);
   const output = await new Response(new Blob([input]).stream().pipeThrough(ds)).arrayBuffer();
   return new Uint8Array(output);
-}
-
-function isUnsupportedInflaterError(error: unknown): boolean {
-  return error instanceof Error && /nao suporta descompactar PDF/i.test(error.message);
 }
 
 function extractTextStrings(bytes: Uint8Array): string[] {

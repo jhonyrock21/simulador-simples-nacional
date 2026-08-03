@@ -73,6 +73,23 @@
           <p class="block__hint" id="period-hint"></p>
         </section>
 
+        <section class="block" aria-labelledby="block-pdf-import">
+          <div class="block__head">
+            <h2 class="block__title" id="block-pdf-import">Importar Extrato DAS</h2>
+            <button class="btn btn--ghost" type="button" id="clear-pdf-import" hidden>
+              Ocultar resumo
+            </button>
+          </div>
+          <label class="pdf-import" id="pdf-drop">
+            <input class="pdf-import__input" id="pdf-file" type="file" accept="application/pdf,.pdf" />
+            <span class="pdf-import__title">Arraste o PDF aqui ou selecione o arquivo</span>
+            <span class="pdf-import__hint">
+              Leitura local do Extrato DAS/PGDAS-D. O arquivo não é enviado para servidor nem API.
+            </span>
+          </label>
+          <div class="import-status" id="pdf-import-status" role="status" aria-live="polite"></div>
+        </section>
+
         <section class="block block--advanced" aria-labelledby="block-sublimit">
           <details class="advanced">
             <summary class="advanced__summary">

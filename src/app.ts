@@ -19,6 +19,7 @@ import {
   formatPercentText,
   parseMoneyToCents,
 } from "./money";
+import { extractDasPdf, type DasPdfImportData } from "./das-pdf";
 import {
   ANNEXES,
   ANNEX_DESCRIPTIONS_2026,
@@ -419,6 +420,10 @@ const activitiesRoot = el<HTMLDivElement>("activities-root");
 const resultRoot = el<HTMLElement>("result");
 const periodHint = el<HTMLParagraphElement>("period-hint");
 const rulesetBadge = el<HTMLParagraphElement>("ruleset-badge");
+const pdfDrop = el<HTMLLabelElement>("pdf-drop");
+const pdfFileInput = el<HTMLInputElement>("pdf-file");
+const pdfImportStatus = el<HTMLDivElement>("pdf-import-status");
+const clearPdfImport = el<HTMLButtonElement>("clear-pdf-import");
 let latestSimulation: SimulationValue | null = null;
 
 // ---------------------------------------------------------------------------
@@ -1504,6 +1509,180 @@ function recompute(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Importacao local do Extrato DAS/PGDAS-D
+// ---------------------------------------------------------------------------
+
+interface DasImportApplySummary {
+  readonly applied: string[];
+  readonly skipped: string[];
+  readonly warnings: string[];
+}
+
+async function importDasPdfFile(file: File): Promise<void> {
+  if (!isPdfFile(file)) {
+    renderPdfImportStatus("error", "Arquivo recusado", [
+      "Selecione um PDF do Extrato DAS/PGDAS-D.",
+    ]);
+    return;
+  }
+
+  renderPdfImportStatus("loading", "Lendo PDF localmente", [
+    `${file.name} (${Math.ceil(file.size / 1024)} KB)`,
+    "Nenhum dado sera enviado para servidor ou API.",
+  ]);
+
+  try {
+    const data = await extractDasPdf(await file.arrayBuffer());
+    const summary = applyDasPdfImport(data);
+    syncStaticFields();
+    renderDynamic();
+    recompute();
+    renderPdfImportStatus("ok", "Extrato DAS importado", [
+      ...summary.applied,
+      ...summary.skipped.map((item) => `Nao aplicado: ${item}`),
+      ...summary.warnings.map((item) => `Revise: ${item}`),
+    ]);
+  } catch (error) {
+    renderPdfImportStatus("error", "Nao consegui importar este PDF", [
+      error instanceof Error ? error.message : "Erro inesperado na leitura do PDF.",
+      "Se o arquivo for uma imagem escaneada, ainda sera necessario preencher manualmente.",
+    ]);
+  }
+}
+
+function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+}
+
+function applyDasPdfImport(data: DasPdfImportData): DasImportApplySummary {
+  const applied: string[] = [];
+  const skipped: string[] = [];
+  const warnings = [...data.warnings];
+
+  if (data.companyName) {
+    model.name = data.companyName;
+    applied.push("empresa");
+  }
+  if (data.cnpj) {
+    model.cnpj = formatCnpjInput(data.cnpj);
+    applied.push("CNPJ");
+  }
+  if (data.openingDate) {
+    model.openingDate = data.openingDate;
+    applied.push("data de abertura");
+  }
+  if (data.period && data.period >= RULESET_2026.period.from && data.period <= RULESET_2026.period.through) {
+    model.rulePeriod = data.period;
+    applied.push("competencia do PA");
+  } else if (data.period) {
+    skipped.push(`competencia ${data.period}, fora da vigencia carregada`);
+  }
+
+  applyMoneyIfPresent("rbt12Internal", data.rbt12Internal, "RBT12 mercado interno", applied);
+  applyMoneyIfPresent("rbt12External", data.rbt12External, "RBT12 exportacao", applied);
+  applyMoneyIfPresent("priorInternal", data.priorInternal, "RBAA mercado interno", applied);
+  applyMoneyIfPresent("priorExternal", data.priorExternal, "RBAA exportacao", applied);
+  applyMoneyIfPresent("currentYearInternalBefore", data.currentYearBeforeInternal, "RBA antes do PA mercado interno", applied);
+  applyMoneyIfPresent("currentYearExternalBefore", data.currentYearBeforeExternal, "RBA antes do PA exportacao", applied);
+  if (data.impeded !== undefined) {
+    model.impeded = data.impeded;
+    applied.push("situacao de impedimento ICMS/ISS");
+  }
+
+  const importedPeriods = applyImportedHistory(data);
+  if (importedPeriods > 0) {
+    const plan = currentPlan();
+    if (plan?.ok && plan.value.periods.some((period) => hasImportedHistoryForPeriod(data, period))) {
+      model.historyMode = "detailed";
+    }
+    applied.push(`${importedPeriods} competencia(s) de historico mensal`);
+  }
+
+  if (data.activities.length > 0) {
+    if (canReplaceActivities()) {
+      model.activities = data.activities.map((activity) => ({
+        description: activity.description,
+        annexMode: "manual",
+        selectedAnnex: activity.annex,
+        overrideAnnex: "",
+        confirmOverride: false,
+        segments: { ...activity.segments },
+      }));
+      applied.push("atividade e segregacao de revenda reconhecidas");
+    } else {
+      skipped.push("atividades, pois ja havia dados digitados");
+    }
+  }
+
+  if (data.recognizedFields.length === 0) {
+    warnings.push("Nenhum campo fiscal foi reconhecido com seguranca.");
+  }
+
+  return { applied, skipped, warnings };
+}
+
+function applyMoneyIfPresent(
+  key: "rbt12Internal" | "rbt12External" | "priorInternal" | "priorExternal"
+    | "currentYearInternalBefore" | "currentYearExternalBefore",
+  value: string | undefined,
+  label: string,
+  applied: string[],
+): void {
+  if (!value) return;
+  model[key] = value;
+  applied.push(label);
+}
+
+function applyImportedHistory(data: DasPdfImportData): number {
+  const periods = new Set([
+    ...Object.keys(data.monthlyInternal),
+    ...Object.keys(data.monthlyExternal),
+    ...Object.keys(data.monthlyPayroll),
+  ]);
+
+  for (const period of periods) {
+    const cell = model.history[period] ?? { internal: "", external: "", payroll: "" };
+    cell.internal = data.monthlyInternal[period] ?? cell.internal;
+    cell.external = data.monthlyExternal[period] ?? cell.external;
+    cell.payroll = data.monthlyPayroll[period] ?? cell.payroll;
+    model.history[period] = cell;
+  }
+
+  return periods.size;
+}
+
+function hasImportedHistoryForPeriod(data: DasPdfImportData, period: string): boolean {
+  return data.monthlyInternal[period] !== undefined
+    || data.monthlyExternal[period] !== undefined
+    || data.monthlyPayroll[period] !== undefined;
+}
+
+function canReplaceActivities(): boolean {
+  return model.activities.length === 1
+    && model.activities[0].description.trim() === ""
+    && model.activities[0].annexMode === "manual"
+    && model.activities[0].selectedAnnex === ""
+    && Object.values(model.activities[0].segments).every((value) => (value ?? "") === "");
+}
+
+function renderPdfImportStatus(kind: "loading" | "ok" | "error", title: string, items: readonly string[]): void {
+  clearPdfImport.hidden = kind === "loading";
+  const modifier = kind === "ok" ? " import-status__box--ok" : kind === "error" ? " import-status__box--error" : "";
+  pdfImportStatus.innerHTML = `<div class="import-status__box${modifier}">
+    <p class="import-status__title">${escapeHtml(title)}</p>
+    <ul class="import-status__list">
+      ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+    </ul>
+  </div>`;
+}
+
+function clearPdfImportStatus(): void {
+  pdfImportStatus.innerHTML = "";
+  pdfFileInput.value = "";
+  clearPdfImport.hidden = true;
+}
+
+// ---------------------------------------------------------------------------
 // Eventos
 // ---------------------------------------------------------------------------
 
@@ -1599,6 +1778,32 @@ form.addEventListener("change", (event) => {
   recompute();
 });
 
+pdfFileInput.addEventListener("change", () => {
+  const file = pdfFileInput.files?.[0];
+  if (file) void importDasPdfFile(file);
+});
+
+for (const eventName of ["dragenter", "dragover"]) {
+  pdfDrop.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    pdfDrop.classList.add("is-dragging");
+  });
+}
+
+for (const eventName of ["dragleave", "drop"]) {
+  pdfDrop.addEventListener(eventName, () => {
+    pdfDrop.classList.remove("is-dragging");
+  });
+}
+
+pdfDrop.addEventListener("drop", (event) => {
+  event.preventDefault();
+  const file = event.dataTransfer?.files[0];
+  if (file) void importDasPdfFile(file);
+});
+
+clearPdfImport.addEventListener("click", clearPdfImportStatus);
+
 form.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
@@ -1620,6 +1825,7 @@ form.addEventListener("click", (event) => {
 
   if (target.id === "reset") {
     model = defaultModel();
+    clearPdfImportStatus();
     syncStaticFields();
     renderDynamic();
     recompute();

@@ -8,6 +8,9 @@ com memoria de calculo por atividade, segmento, tributo e ente federativo.
 
 ## Como rodar e testar no navegador
 
+URL publica de teste no launcher da Plataforma CTG:
+https://jhonyrock21.github.io/simulador-simples-nacional/
+
 Pre-requisito: Node.js LTS instalado (https://nodejs.org).
 
 1. De dois cliques em **`Iniciar Simulador Simples Nacional.bat`**.
@@ -33,6 +36,11 @@ npm run preview    # serve o build em http://localhost:8100
 ## Como usar a tela
 
 - Preencha **empresa e periodo** (data de abertura e competencia de 2026).
+- Opcionalmente, arraste ou selecione o **Extrato DAS/PGDAS-D em PDF** no bloco
+  **Importar Extrato DAS**. A leitura e local no navegador: nenhum arquivo ou
+  dado fiscal e enviado para servidor/API. O importador preenche dados
+  reconhecidos (empresa, CNPJ, PA, abertura, RBT12/RBA/RBAA, historico mensal e
+  algumas receitas de revenda) e mostra um resumo para revisao.
 - O **CNPJ** e opcional e pode ser digitado so com numeros; a tela aplica a
   mascara `00.000.000/0000-00` automaticamente.
 - Em **Base RBT12 e folha**, empresa com 12 meses ou mais usa o modo rapido:
@@ -66,7 +74,7 @@ dados, login ou API.
 ## Verificar o codigo (motor e interface)
 
 ```powershell
-npm test           # 82 testes (motor fiscal + parser/máscara + XLSX)
+npm test           # 87 testes (motor fiscal + parser/máscara + XLSX + PDF DAS)
 npm run typecheck  # verificacao de tipos
 ```
 
@@ -82,5 +90,6 @@ npm run typecheck  # verificacao de tipos
 | `index.html`, `src/styles.css` | Tela unica com a identidade CTG. |
 | `tests/` | Testes do motor, do parser/mascara e do gerador de planilha. |
 
-Estado atual: Fase 2 (interface) entregue para teste. Homologacao fiscal com o
-PGDAS-D (Fase 3) e a publicacao (Fase 4) ainda dependem de acao humana.
+Estado atual: Fase 2 (interface) entregue para teste e registrada no launcher
+como modulo web `semente`. Homologacao fiscal com o PGDAS-D (Fase 3) e uso
+produtivo ainda dependem de acao humana.

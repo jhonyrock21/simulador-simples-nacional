@@ -1,0 +1,100 @@
+import { describe, expect, it } from "vitest";
+
+import { extractPdfTextLines, parseDasTextLines } from "../src/das-pdf";
+
+describe("parseDasTextLines", () => {
+  it("extrai bases, historico mensal e atividade de revenda do Extrato DAS", () => {
+    const data = parseDasTextLines([
+      "Extrato do Simples Nacional",
+      "Nome Empresarial: A & C EVENTOS E PROMOCOES LTDA",
+      "Data de Abertura: 05/01/2007",
+      "Período de Apuração (PA): 06/2026",
+      "Receita Bruta do PA (RPA) - Competência",
+      "11.722,00",
+      "0,00",
+      "11.722,00",
+      "Receita bruta acumulada nos doze meses anteriores ao PA",
+      "(RBT12)",
+      "209.171,00",
+      "0,00",
+      "209.171,00",
+      "Receita bruta acumulada no ano-calendário corrente (RBA)",
+      "65.043,50",
+      "0,00",
+      "65.043,50",
+      "Receita bruta acumulada no ano-calendário anterior",
+      "(RBAA)",
+      "234.033,50",
+      "0,00",
+      "234.033,50",
+      "2.2.1) Mercado Interno",
+      "06/2025",
+      "16.920,00",
+      "07/2025",
+      "18.037,00",
+      "05/2026",
+      "11.278,00",
+      "2.2.2) Mercado Externo",
+      "06/2025",
+      "0,00",
+      "07/2025",
+      "0,00",
+      "05/2026",
+      "0,00",
+      "2.3) Folha de Salários Anteriores (R$)",
+      "Nenhuma",
+      "2.4) Fator r",
+      "Impedido de recolher ICMS/ISS no DAS: Não",
+      "CNPJ Estabelecimento: 08.585.649/0001-23",
+      "Revenda de mercadorias, exceto para o exterior - Sem substituição tributária/tributação monofásica",
+      "Receita Bruta Informada: R$ 108,00",
+      "Revenda de mercadorias, exceto para o exterior - Com substituição tributária/tributação monofásica",
+      "Receita Bruta Informada: R$ 11.614,00",
+      "Parcela 1: R$ 338,00",
+      "Substituição tributária de: ICMS.",
+      "Parcela 2: R$ 11.276,00",
+      "Substituição tributária de: ICMS.",
+      "Tributação monofásica de: COFINS, PIS.",
+    ]);
+
+    expect(data.companyName).toBe("A & C EVENTOS E PROMOCOES LTDA");
+    expect(data.cnpj).toBe("08.585.649/0001-23");
+    expect(data.openingDate).toBe("2007-01-05");
+    expect(data.period).toBe("2026-06");
+    expect(data.rpaInternal).toBe("11.722,00");
+    expect(data.rbt12Internal).toBe("209.171,00");
+    expect(data.currentYearBeforeInternal).toBe("53.321,50");
+    expect(data.priorInternal).toBe("234.033,50");
+    expect(data.monthlyInternal["2025-06"]).toBe("16.920,00");
+    expect(data.monthlyInternal["2026-05"]).toBe("11.278,00");
+    expect(data.monthlyExternal["2025-06"]).toBe("0,00");
+    expect(data.impeded).toBe(false);
+    expect(data.activities[0].annex).toBe("I");
+    expect(data.activities[0].segments.icms_normal_pis_cofins_normal).toBe("108,00");
+    expect(data.activities[0].segments.icms_st_pis_cofins_normal).toBe("338,00");
+    expect(data.activities[0].segments.icms_st_pis_cofins_monofasico).toBe("11.276,00");
+  });
+});
+
+describe("extractPdfTextLines", () => {
+  it("le strings literais de PDF textual sem enviar dados para fora", async () => {
+    const pdf = `%PDF-1.4
+1 0 obj
+<< /Length 105 >>
+stream
+BT
+(Extrato do Simples Nacional)Tj
+(Nome Empresarial: TESTE LTDA)Tj
+(Per\\355odo de Apura\\347\\343o \\(PA\\): 06/2026)Tj
+ET
+endstream
+endobj
+%%EOF`;
+
+    const lines = await extractPdfTextLines(new TextEncoder().encode(pdf).buffer);
+
+    expect(lines).toContain("Extrato do Simples Nacional");
+    expect(lines).toContain("Nome Empresarial: TESTE LTDA");
+    expect(lines).toContain("Período de Apuração (PA): 06/2026");
+  });
+});

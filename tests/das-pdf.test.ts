@@ -75,6 +75,48 @@ describe("parseDasTextLines", () => {
     expect(data.activities[0].segments.icms_st_pis_cofins_normal).toBe("338,00");
     expect(data.activities[0].segments.icms_st_pis_cofins_monofasico).toBe("11.276,00");
   });
+
+  it("encontra parcelas quando o PDF lista tributos antes da segregacao", () => {
+    const data = parseDasTextLines([
+      "Extrato do Simples Nacional",
+      "Valor do Debito por Tributo para a Atividade R$:",
+      "Revenda de mercadorias, exceto para o exterior - Sem substituicao tributaria/tributacao",
+      "monofasica",
+      "Receita Bruta Informada: R$ 108,00",
+      "IRPJ",
+      "CSLL",
+      "COFINS",
+      "PIS/Pasep",
+      "CPP",
+      "ICMS",
+      "IPI",
+      "ISS",
+      "Total",
+      "Parcela 1: R$ 108,00",
+      "Valor do Debito por Tributo para a Atividade R$:",
+      "Revenda de mercadorias, exceto para o exterior - Com substituicao tributaria/tributacao",
+      "monofasica",
+      "Receita Bruta Informada: R$ 11.614,00",
+      "IRPJ",
+      "CSLL",
+      "COFINS",
+      "PIS/Pasep",
+      "CPP",
+      "ICMS",
+      "IPI",
+      "ISS",
+      "Total",
+      "Parcela 1: R$ 338,00",
+      "Substituicao tributaria de: ICMS.",
+      "Parcela 2: R$ 11.276,00",
+      "Substituicao tributaria de: ICMS.",
+      "Tributacao monofasica de: COFINS, PIS.",
+    ]);
+
+    expect(data.activities[0].segments.icms_normal_pis_cofins_normal).toBe("108,00");
+    expect(data.activities[0].segments.icms_st_pis_cofins_normal).toBe("338,00");
+    expect(data.activities[0].segments.icms_st_pis_cofins_monofasico).toBe("11.276,00");
+  });
 });
 
 describe("extractPdfTextLines", () => {

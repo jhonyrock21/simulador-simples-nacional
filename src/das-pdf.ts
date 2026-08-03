@@ -391,7 +391,7 @@ function parseActivities(lines: readonly string[]): ImportedActivity[] {
     const context = lines.slice(Math.max(0, index - 5), index + 8).join(" ");
     if (/Revenda de mercadorias/i.test(context)) foundCommerce = true;
 
-    const remaining = lines.slice(index + 1, index + 12);
+    const remaining = lines.slice(index + 1);
     const boundary = remaining.findIndex((item) =>
       /Receita Bruta Informada:\s*R\$|Valor do D[eé]bito por Tributo para a Atividade/i.test(item),
     );

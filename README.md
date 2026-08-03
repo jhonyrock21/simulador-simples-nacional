@@ -41,7 +41,8 @@ npm run preview    # serve o build em http://localhost:8100
   dado fiscal e enviado para servidor/API. O importador preenche dados
   reconhecidos (empresa, CNPJ, PA, abertura, RBT12/RBA/RBAA, historico mensal e
   algumas receitas de revenda), le os streams byte a byte com fallback local
-  para PDF compactado e mostra um resumo para revisao.
+  para PDF compactado e busca as parcelas ate a proxima atividade do PDF antes
+  de mostrar um resumo para revisao.
 - O **CNPJ** e opcional e pode ser digitado so com numeros; a tela aplica a
   mascara `00.000.000/0000-00` automaticamente.
 - Em **Base RBT12 e folha**, empresa com 12 meses ou mais usa o modo rapido:
@@ -75,7 +76,7 @@ dados, login ou API.
 ## Verificar o codigo (motor e interface)
 
 ```powershell
-npm test           # 90 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
+npm test           # 91 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
 npm run typecheck  # verificacao de tipos
 ```
 

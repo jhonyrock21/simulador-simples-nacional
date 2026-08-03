@@ -62,11 +62,15 @@ export async function extractPdfTextLines(
   const lines: string[] = [];
 
   for (const stream of streams) {
-    let bytes = stream.bytes;
-    if (stream.flate) {
-      bytes = await inflater(bytes);
+    try {
+      let bytes = stream.bytes;
+      if (stream.flate) {
+        bytes = await inflater(bytes);
+      }
+      lines.push(...extractTextStrings(bytes));
+    } catch (error) {
+      if (isUnsupportedInflaterError(error)) throw error;
     }
-    lines.push(...extractTextStrings(bytes));
   }
 
   return lines
@@ -158,21 +162,35 @@ function findPdfStreams(binary: string): { bytes: Uint8Array; flate: boolean }[]
     if (binary.slice(contentStart, contentStart + 2) === "\r\n") contentStart += 2;
     else if (binary[contentStart] === "\n" || binary[contentStart] === "\r") contentStart += 1;
 
-    const endIndex = binary.indexOf("endstream", contentStart);
-    if (endIndex < 0) break;
-    let contentEnd = endIndex;
-    if (binary.slice(contentEnd - 2, contentEnd) === "\r\n") contentEnd -= 2;
-    else if (binary[contentEnd - 1] === "\n" || binary[contentEnd - 1] === "\r") contentEnd -= 1;
-
     const dictionaryStart = binary.lastIndexOf("<<", streamIndex);
     const dictionary = dictionaryStart >= 0 ? binary.slice(dictionaryStart, streamIndex) : "";
+    const declaredLength = pdfStreamLength(dictionary);
+    const fallbackEndIndex = binary.indexOf("endstream", contentStart);
+    const contentEnd = declaredLength !== null
+      ? Math.min(contentStart + declaredLength, binary.length)
+      : trimPdfStreamEnd(binary, fallbackEndIndex);
+
+    if (contentEnd < contentStart) break;
     streams.push({
       bytes: bytesFromBinary(binary.slice(contentStart, contentEnd)),
       flate: /\/FlateDecode\b/.test(dictionary),
     });
-    cursor = endIndex + "endstream".length;
+    const endIndex = binary.indexOf("endstream", contentEnd);
+    cursor = (endIndex >= 0 ? endIndex : contentEnd) + "endstream".length;
   }
   return streams;
+}
+
+function pdfStreamLength(dictionary: string): number | null {
+  const match = dictionary.match(/\/Length\s+(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+function trimPdfStreamEnd(binary: string, endIndex: number): number {
+  if (endIndex < 0) return -1;
+  if (binary.slice(endIndex - 2, endIndex) === "\r\n") return endIndex - 2;
+  if (binary[endIndex - 1] === "\n" || binary[endIndex - 1] === "\r") return endIndex - 1;
+  return endIndex;
 }
 
 function bytesFromBinary(value: string): Uint8Array {
@@ -202,6 +220,10 @@ async function decompress(bytes: Uint8Array, format: string): Promise<Uint8Array
   new Uint8Array(input).set(bytes);
   const output = await new Response(new Blob([input]).stream().pipeThrough(ds)).arrayBuffer();
   return new Uint8Array(output);
+}
+
+function isUnsupportedInflaterError(error: unknown): boolean {
+  return error instanceof Error && /nao suporta descompactar PDF/i.test(error.message);
 }
 
 function extractTextStrings(bytes: Uint8Array): string[] {

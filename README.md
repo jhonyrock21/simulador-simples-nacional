@@ -40,7 +40,8 @@ npm run preview    # serve o build em http://localhost:8100
   **Importar Extrato DAS**. A leitura e local no navegador: nenhum arquivo ou
   dado fiscal e enviado para servidor/API. O importador preenche dados
   reconhecidos (empresa, CNPJ, PA, abertura, RBT12/RBA/RBAA, historico mensal e
-  algumas receitas de revenda) e mostra um resumo para revisao.
+  algumas receitas de revenda), respeita o tamanho oficial dos streams do PDF
+  e mostra um resumo para revisao.
 - O **CNPJ** e opcional e pode ser digitado so com numeros; a tela aplica a
   mascara `00.000.000/0000-00` automaticamente.
 - Em **Base RBT12 e folha**, empresa com 12 meses ou mais usa o modo rapido:
@@ -74,7 +75,7 @@ dados, login ou API.
 ## Verificar o codigo (motor e interface)
 
 ```powershell
-npm test           # 87 testes (motor fiscal + parser/máscara + XLSX + PDF DAS)
+npm test           # 89 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
 npm run typecheck  # verificacao de tipos
 ```
 

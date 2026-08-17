@@ -42,7 +42,9 @@ npm run preview    # serve o build em http://localhost:8100
   reconhecidos (empresa, CNPJ, PA, abertura, RBT12/RBA/RBAA, historico mensal e
   algumas receitas de revenda), le os streams byte a byte com fallback local
   para PDF compactado e busca as parcelas ate a proxima atividade do PDF antes
-  de mostrar um resumo para revisao.
+  de mostrar um resumo para revisao. A receita do PA do extrato tambem fica
+  guardada no mes correspondente: ao importar junho e selecionar julho, a linha
+  de junho no historico e preenchida pelo RPA do proprio PDF.
 - O **CNPJ** e opcional e pode ser digitado so com numeros; a tela aplica a
   mascara `00.000.000/0000-00` automaticamente.
 - Em **Base RBT12 e folha**, empresa com 12 meses ou mais usa o modo rapido:

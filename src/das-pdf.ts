@@ -98,6 +98,11 @@ export function parseDasTextLines(rawLines: readonly string[]): DasPdfImportData
   const monthlyInternal = monthlyPairsBetween(lines, /2\.2\.1/i, /2\.2\.2/i);
   const monthlyExternal = monthlyPairsBetween(lines, /2\.2\.2/i, /2\.3/i);
   const monthlyPayroll = monthlyPairsBetween(lines, /2\.3/i, /2\.4/i);
+  // O RPA vira historico quando o usuario avanca para a competencia seguinte.
+  if (period && rpa) {
+    monthlyInternal[period] ??= rpa.internal;
+    monthlyExternal[period] ??= rpa.external;
+  }
   const activities = parseActivities(lines);
 
   if (companyName) recognized.add("empresa");

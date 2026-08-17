@@ -68,7 +68,9 @@ describe("parseDasTextLines", () => {
     expect(data.priorInternal).toBe("234.033,50");
     expect(data.monthlyInternal["2025-06"]).toBe("16.920,00");
     expect(data.monthlyInternal["2026-05"]).toBe("11.278,00");
+    expect(data.monthlyInternal["2026-06"]).toBe("11.722,00");
     expect(data.monthlyExternal["2025-06"]).toBe("0,00");
+    expect(data.monthlyExternal["2026-06"]).toBe("0,00");
     expect(data.impeded).toBe(false);
     expect(data.activities[0].annex).toBe("I");
     expect(data.activities[0].segments.icms_normal_pis_cofins_normal).toBe("108,00");

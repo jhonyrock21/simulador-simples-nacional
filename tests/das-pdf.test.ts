@@ -78,6 +78,68 @@ describe("parseDasTextLines", () => {
     expect(data.activities[0].segments.icms_st_pis_cofins_monofasico).toBe("11.276,00");
   });
 
+  it("separa os mercados mesmo quando a versao e um valor contem numeros de secao", () => {
+    const data = parseDasTextLines([
+      "Extrato do Simples Nacional",
+      "PGDAS-D 2018 Versao IC-2.2.22",
+      "Periodo de Apuracao (PA): 06/2026",
+      "Receita Bruta do PA (RPA) - Competencia",
+      "110.523,35",
+      "0,00",
+      "110.523,35",
+      "2.2.1) Mercado Interno",
+      "08/2025",
+      "09/2025",
+      "0,00",
+      "10/2025",
+      "0,00",
+      "11/2025",
+      "32.805,65",
+      "12/2025",
+      "174.892,40",
+      "01/2026",
+      "98.340,65",
+      "02/2026",
+      "77.031,49",
+      "03/2026",
+      "94.648,84",
+      "04/2026",
+      "102.447,45",
+      "05/2026",
+      "112.388,89",
+      "2.2.2) Mercado Externo",
+      "09/2025",
+      "0,00",
+      "10/2025",
+      "0,00",
+      "11/2025",
+      "0,00",
+      "12/2025",
+      "0,00",
+      "01/2026",
+      "0,00",
+      "02/2026",
+      "0,00",
+      "03/2026",
+      "0,00",
+      "04/2026",
+      "0,00",
+      "05/2026",
+      "0,00",
+      "2.3) Folha de Salarios Anteriores (R$)",
+      "Nenhuma",
+      "2.4) Fator r",
+    ]);
+
+    expect(data.monthlyInternal["2025-08"]).toBeUndefined();
+    expect(data.monthlyInternal["2025-11"]).toBe("32.805,65");
+    expect(data.monthlyInternal["2026-05"]).toBe("112.388,89");
+    expect(data.monthlyExternal["2025-11"]).toBe("0,00");
+    expect(data.monthlyExternal["2026-04"]).toBe("0,00");
+    expect(data.monthlyExternal["2026-05"]).toBe("0,00");
+    expect(data.monthlyExternal["2026-06"]).toBe("0,00");
+  });
+
   it("encontra parcelas quando o PDF lista tributos antes da segregacao", () => {
     const data = parseDasTextLines([
       "Extrato do Simples Nacional",

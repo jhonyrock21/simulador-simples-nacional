@@ -95,9 +95,9 @@ export function parseDasTextLines(rawLines: readonly string[]): DasPdfImportData
   const rba = moneyTripletAfter(lines, (line) => /Receita bruta acumulada no ano-calend[aá]rio corrente/i.test(line));
   const rbaa = moneyTripletAfter(lines, (line) => /Receita bruta acumulada no ano-calend[aá]rio anterior/i.test(line));
   const impededText = matchGroup(lines, /Impedido de recolher ICMS\/ISS no DAS:\s*(Sim|N[aã]o)/i);
-  const monthlyInternal = monthlyPairsBetween(lines, /2\.2\.1/i, /2\.2\.2/i);
-  const monthlyExternal = monthlyPairsBetween(lines, /2\.2\.2/i, /2\.3/i);
-  const monthlyPayroll = monthlyPairsBetween(lines, /2\.3/i, /2\.4/i);
+  const monthlyInternal = monthlyPairsBetween(lines, /^2\.2\.1\)/i, /^2\.2\.2\)/i);
+  const monthlyExternal = monthlyPairsBetween(lines, /^2\.2\.2\)/i, /^2\.3\)/i);
+  const monthlyPayroll = monthlyPairsBetween(lines, /^2\.3\)/i, /^2\.4\)/i);
   // O RPA vira historico quando o usuario avanca para a competencia seguinte.
   if (period && rpa) {
     monthlyInternal[period] ??= rpa.internal;
@@ -379,8 +379,8 @@ function parseMonthlyPairs(lines: readonly string[]): Record<string, string> {
   for (let index = 0; index < lines.length - 1; index += 1) {
     const period = brPeriodToIso(lines[index]);
     if (!period) continue;
-    const money = lines.slice(index + 1).find(isMoney);
-    if (money) pairs[period] = cleanMoney(money);
+    const money = lines[index + 1];
+    if (money && isMoney(money)) pairs[period] = cleanMoney(money);
   }
   return pairs;
 }

@@ -45,6 +45,9 @@ npm run preview    # serve o build em http://localhost:8100
   de mostrar um resumo para revisao. A receita do PA do extrato tambem fica
   guardada no mes correspondente: ao importar junho e selecionar julho, a linha
   de junho no historico e preenchida pelo RPA do proprio PDF.
+  As tabelas mensais sao delimitadas pelos titulos completos `2.2.1)`,
+  `2.2.2)`, `2.3)` e `2.4)`, evitando misturar Mercado Interno e Mercado
+  Externo com numeros presentes na versao do PGDAS-D ou nos valores monetarios.
 - O **CNPJ** e opcional e pode ser digitado so com numeros; a tela aplica a
   mascara `00.000.000/0000-00` automaticamente.
 - Em **Base RBT12 e folha**, empresa com 12 meses ou mais usa o modo rapido:
@@ -78,7 +81,7 @@ dados, login ou API.
 ## Verificar o codigo (motor e interface)
 
 ```powershell
-npm test           # 91 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
+npm test           # 92 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
 npm run typecheck  # verificacao de tipos
 ```
 

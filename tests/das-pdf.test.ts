@@ -7,8 +7,8 @@ describe("parseDasTextLines", () => {
   it("extrai bases, historico mensal e atividade de revenda do Extrato DAS", () => {
     const data = parseDasTextLines([
       "Extrato do Simples Nacional",
-      "Nome Empresarial: A & C EVENTOS E PROMOCOES LTDA",
-      "Data de Abertura: 05/01/2007",
+      "Nome Empresarial: EMPRESA EXEMPLO EVENTOS LTDA",
+      "Data de Abertura: 10/03/2010",
       "Periodo de Apuracao (PA): 06/2026",
       "Receita Bruta do PA (RPA) - Competencia",
       "11.722,00",
@@ -46,7 +46,7 @@ describe("parseDasTextLines", () => {
       "Nenhuma",
       "2.4) Fator r",
       "Impedido de recolher ICMS/ISS no DAS: Nao",
-      "CNPJ Estabelecimento: 08.585.649/0001-23",
+      "CNPJ Estabelecimento: 12.345.678/0001-95",
       "Revenda de mercadorias, exceto para o exterior - Sem substituicao tributaria/tributacao monofasica",
       "Receita Bruta Informada: R$ 108,00",
       "Revenda de mercadorias, exceto para o exterior - Com substituicao tributaria/tributacao monofasica",
@@ -58,9 +58,9 @@ describe("parseDasTextLines", () => {
       "Tributacao monofasica de: COFINS, PIS.",
     ]);
 
-    expect(data.companyName).toBe("A & C EVENTOS E PROMOCOES LTDA");
-    expect(data.cnpj).toBe("08.585.649/0001-23");
-    expect(data.openingDate).toBe("2007-01-05");
+    expect(data.companyName).toBe("EMPRESA EXEMPLO EVENTOS LTDA");
+    expect(data.cnpj).toBe("12.345.678/0001-95");
+    expect(data.openingDate).toBe("2010-03-10");
     expect(data.period).toBe("2026-06");
     expect(data.rpaInternal).toBe("11.722,00");
     expect(data.rbt12Internal).toBe("209.171,00");

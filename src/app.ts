@@ -881,13 +881,27 @@ function buildPdfLines(value: SimulationValue): PdfTextLine[] {
   }
 
   pdfSection(lines, "Tributos");
-  pushWrappedLine(lines, `${padColumn("Tributo", 14)}Valor no DAS`, { font: "F3", size: 8, color: "blue" });
+  pushWrappedLine(lines, `${padColumn("Tributo", 14)}${padColumn("Aliq. efetiva", 18)}Valor no DAS`, {
+    font: "F3",
+    size: 8,
+    color: "blue",
+  });
   for (const tax of TAXES) {
-    pushWrappedLine(lines, `${padColumn(TAX_LABELS[tax], 14)}${formatCents(value.byTaxCents[tax])}`, {
+    const row = `${padColumn(TAX_LABELS[tax], 14)}`
+      + `${padColumn(formatPercentText(value.effectiveRateByTax[tax]), 18)}`
+      + formatCents(value.byTaxCents[tax]);
+    pushWrappedLine(lines, row, {
       font: "F3",
       size: 8,
     });
   }
+  const totalRow = `${padColumn("Total do DAS", 14)}`
+    + `${padColumn(formatPercentText(value.totalEffectiveRate), 18)}`
+    + formatCents(value.totalDasCents);
+  pushWrappedLine(lines, totalRow, {
+    font: "F2",
+    size: 8,
+  });
 
   if (value.warnings.length > 0) {
     pdfSection(lines, "Avisos fiscais");
@@ -1212,9 +1226,17 @@ function buildXlsxSheets(value: SimulationValue): XlsxSheet[] {
 
   const tributos: XlsxCell[][] = [
     sectionRow("Tributos"),
-    headerRow("Tributo", "Valor no DAS"),
-    ...TAXES.map((tax) => [TAX_LABELS[tax], formatCents(value.byTaxCents[tax])]),
-    totalRow("Total do DAS", formatCents(value.totalDasCents)),
+    headerRow("Tributo", "Aliquota efetiva", "Valor no DAS"),
+    ...TAXES.map((tax) => [
+      TAX_LABELS[tax],
+      formatPercentText(value.effectiveRateByTax[tax]),
+      formatCents(value.byTaxCents[tax]),
+    ]),
+    [
+      cell("Total do DAS", XLSX_STYLES.total),
+      cell(formatPercentText(value.totalEffectiveRate), XLSX_STYLES.total),
+      cell(formatCents(value.totalDasCents), XLSX_STYLES.total),
+    ],
     [],
     sectionRow("Destinacao"),
     ["Uniao", formatCents(value.destinations.federalCents)],
@@ -1257,8 +1279,8 @@ function buildXlsxSheets(value: SimulationValue): XlsxSheet[] {
     {
       name: "Tributos",
       rows: tributos,
-      columns: [30, 20],
-      merges: ["A1:B1", `A${destinacaoSectionRow}:B${destinacaoSectionRow}`],
+      columns: [26, 20, 20],
+      merges: ["A1:C1", `A${destinacaoSectionRow}:C${destinacaoSectionRow}`],
     },
     {
       name: "Memoria",
@@ -1291,18 +1313,21 @@ function downloadBlob(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function taxRows(byTax: Readonly<Record<Tax, number>>, total: number): string {
+function taxRows(value: SimulationValue): string {
   const rows = TAXES.map((tax) => {
-    const value = byTax[tax];
+    const taxValue = value.byTaxCents[tax];
     return `<tr>
       <td>${TAX_LABELS[tax]}</td>
-      <td class="${value === 0 ? "muted" : ""}">${formatCents(value)}</td>
+      <td class="${taxValue === 0 ? "muted" : ""}">${formatPercentText(value.effectiveRateByTax[tax])}</td>
+      <td class="${taxValue === 0 ? "muted" : ""}">${formatCents(taxValue)}</td>
     </tr>`;
   }).join("");
   return `<table class="result-table">
-    <thead><tr><th>Tributo</th><th>Valor no DAS</th></tr></thead>
+    <thead><tr><th>Tributo</th><th>Alíq. efetiva</th><th>Valor no DAS</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td>Total do DAS</td><td>${formatCents(total)}</td></tr></tfoot>
+    <tfoot><tr><td>Total do DAS</td>
+      <td>${formatPercentText(value.totalEffectiveRate)}</td>
+      <td>${formatCents(value.totalDasCents)}</td></tr></tfoot>
   </table>`;
 }
 
@@ -1396,7 +1421,7 @@ function renderResult(value: SimulationValue): void {
 
     <div class="panel">
       <h2 class="panel__title">Tributos</h2>
-      ${taxRows(value.byTaxCents, value.totalDasCents)}
+      ${taxRows(value)}
     </div>
 
     <div class="panel">

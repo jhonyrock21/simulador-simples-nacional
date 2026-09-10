@@ -77,16 +77,16 @@ describe("formatacao", () => {
 
 describe("formatCnpjInput", () => {
   it("formata progressivamente como CNPJ brasileiro", () => {
-    expect(formatCnpjInput("6")).toBe("6");
-    expect(formatCnpjInput("60")).toBe("60");
-    expect(formatCnpjInput("608")).toBe("60.8");
-    expect(formatCnpjInput("60800456")).toBe("60.800.456");
-    expect(formatCnpjInput("60800456000168")).toBe("60.800.456/0001-68");
+    expect(formatCnpjInput("1")).toBe("1");
+    expect(formatCnpjInput("12")).toBe("12");
+    expect(formatCnpjInput("123")).toBe("12.3");
+    expect(formatCnpjInput("12345678")).toBe("12.345.678");
+    expect(formatCnpjInput("12345678000195")).toBe("12.345.678/0001-95");
   });
 
   it("ignora pontuacao existente e limita em 14 digitos", () => {
-    expect(formatCnpjInput("60.800.456/0001-68")).toBe("60.800.456/0001-68");
-    expect(formatCnpjInput("60.800.456/0001-68000")).toBe("60.800.456/0001-68");
+    expect(formatCnpjInput("12.345.678/0001-95")).toBe("12.345.678/0001-95");
+    expect(formatCnpjInput("12.345.678/0001-95000")).toBe("12.345.678/0001-95");
     expect(formatCnpjInput("abc")).toBe("");
   });
 });

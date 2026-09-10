@@ -150,6 +150,24 @@ describe("funcoes fiscais basicas", () => {
 });
 
 describe("simulacao", () => {
+  it("expoe a aliquota efetiva de cada tributo sobre a receita do PA", () => {
+    const result = simulate(manualSimulation());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.effectiveRateByTax).toEqual({
+      irpj: "0.0022",
+      csll: "0.0014",
+      cofins: "0.005096",
+      pis: "0.001104",
+      cpp: "0.0166",
+      icms: "0.0136",
+      ipi: "0",
+      iss: "0",
+    });
+    expect(result.value.totalEffectiveRate).toBe("0.04");
+  });
+
   it("reproduz o caso de regressao da planilha e fecha o total em centavos", () => {
     const input = manualSimulation({
       rbt12Cents: 152_228_418,
@@ -224,6 +242,8 @@ describe("simulacao", () => {
     if (!result.ok) return;
     expect(result.value.factorR).toBeNull();
     expect(result.value.activities[0]).toMatchObject({ annex: null, totalCents: 0 });
+    expect(result.value.totalEffectiveRate).toBe("0");
+    expect(Object.values(result.value.effectiveRateByTax)).toEqual(Array(8).fill("0"));
     expect(result.value.warnings.map(({ code }) => code))
       .toContain("FACTOR_R_NOT_APPLICABLE_WITHOUT_REVENUE");
   });

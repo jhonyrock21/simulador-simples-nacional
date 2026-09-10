@@ -63,13 +63,15 @@ npm run preview    # serve o build em http://localhost:8100
   receita do PA pelos **segmentos**. Os totais sao somados automaticamente.
 - Os valores em dinheiro usam **máscara automática**: digite só os números que
   os centavos entram pela direita (5505555 vira 55.055,55).
-- O painel à direita mostra o **Total do DAS**, os tributos, a destinação para
+- O painel à direita mostra o **Total do DAS**, os tributos com a alíquota
+  efetiva de cada um sobre a receita do PA, a destinação para
   União/Estado/Município, os avisos fiscais e a **memória de cálculo**.
 - Quando houver simulação válida, use **Baixar PDF** ou **Baixar Excel** para
   gerar a memória da simulação atual direto no navegador. Os arquivos usam as
   cores institucionais da Contalger em formato de documento sério; o PDF também
   inclui o ícone da CTG no cabeçalho e o Excel usa layout de relatório com
-  colunas largas, seções mescladas e grade visual reduzida.
+  colunas largas, seções mescladas e grade visual reduzida. PDF e Excel
+  repetem as alíquotas efetivas e os valores exibidos na tabela de tributos.
 - Botão **Como usar** (no topo): abre as instruções e a lógica dos cálculos.
 
 O motor é conferido contra a planilha de referência por testes automatizados
@@ -81,7 +83,7 @@ dados, login ou API.
 ## Verificar o codigo (motor e interface)
 
 ```powershell
-npm test           # 92 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
+npm test           # 93 testes (motor fiscal + parser/mascara + XLSX + PDF DAS)
 npm run typecheck  # verificacao de tipos
 ```
 
@@ -98,5 +100,6 @@ npm run typecheck  # verificacao de tipos
 | `tests/` | Testes do motor, do parser/mascara e do gerador de planilha. |
 
 Estado atual: Fase 2 (interface) entregue para teste e registrada no launcher
-como modulo web `semente`. Homologacao fiscal com o PGDAS-D (Fase 3) e uso
-produtivo ainda dependem de acao humana.
+como modulo web em `producao`, com abertura direta desde 2026-08-17.
+Homologacao fiscal com o PGDAS-D (Fase 3) e uso como DAS oficial ainda dependem
+de acao humana.

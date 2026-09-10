@@ -22,6 +22,7 @@ Decimal.set({ precision: 40, rounding: Decimal.ROUND_HALF_UP });
 
 export type RevenueSegmentCode = (typeof REVENUE_SEGMENTS_2026)[number]["code"];
 export type MoneyByTax = Readonly<Record<Tax, number>>;
+export type RateByTax = Readonly<Record<Tax, string>>;
 type DecimalValue = string | number | Decimal;
 
 export interface MonthlyRevenueInput {
@@ -132,6 +133,8 @@ export interface SimulationValue {
   readonly sublimit: SublimitEvaluation;
   readonly activities: readonly ActivityResult[];
   readonly byTaxCents: MoneyByTax;
+  readonly effectiveRateByTax: RateByTax;
+  readonly totalEffectiveRate: string;
   readonly totalDasCents: number;
   readonly destinations: {
     readonly federalCents: number;
@@ -1044,10 +1047,29 @@ export function simulate(input: SimulationInput): SimulationResult {
   if (errors.length > 0) return { ok: false, errors };
 
   const byTaxCents = emptyMoneyTaxes();
+  const rawByTaxCents = emptyDecimalTaxes();
   for (const activity of activityResults) {
     for (const tax of TAXES) byTaxCents[tax] += activity.byTaxCents[tax];
+    for (const segment of activity.segments) {
+      for (const tax of TAXES) {
+        rawByTaxCents[tax] = rawByTaxCents[tax].plus(segment.rawTaxCents[tax]);
+      }
+    }
   }
   const totalDasCents = TAXES.reduce((sum, tax) => sum + byTaxCents[tax], 0);
+  const currentRevenueCents = new Decimal(input.currentPeriodRevenue.internalCents)
+    .plus(input.currentPeriodRevenue.externalCents);
+  const effectiveRateByTax = Object.fromEntries(TAXES.map((tax) => [
+    tax,
+    currentRevenueCents.isZero() ? "0" : decimalText(rawByTaxCents[tax].div(currentRevenueCents)),
+  ])) as RateByTax;
+  const rawTotalCents = TAXES.reduce(
+    (sum, tax) => sum.plus(rawByTaxCents[tax]),
+    new Decimal(0),
+  );
+  const totalEffectiveRate = currentRevenueCents.isZero()
+    ? "0"
+    : decimalText(rawTotalCents.div(currentRevenueCents));
 
   warnings.push({
     code: "ROUNDING_POLICY_PENDING_PGDAS_VALIDATION",
@@ -1073,6 +1095,8 @@ export function simulate(input: SimulationInput): SimulationResult {
       sublimit: sublimitEvaluation,
       activities: activityResults,
       byTaxCents,
+      effectiveRateByTax,
+      totalEffectiveRate,
       totalDasCents,
       destinations: {
         federalCents: byTaxCents.irpj + byTaxCents.csll + byTaxCents.cofins

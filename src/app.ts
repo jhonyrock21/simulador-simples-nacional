@@ -888,7 +888,7 @@ function buildPdfLines(value: SimulationValue): PdfTextLine[] {
   });
   for (const tax of TAXES) {
     const row = `${padColumn(TAX_LABELS[tax], 14)}`
-      + `${padColumn(formatPercentText(value.effectiveRateByTax[tax]), 18)}`
+      + `${padColumn(formatPercentText(value.effectiveRateByTax[tax], 2), 18)}`
       + formatCents(value.byTaxCents[tax]);
     pushWrappedLine(lines, row, {
       font: "F3",
@@ -896,7 +896,7 @@ function buildPdfLines(value: SimulationValue): PdfTextLine[] {
     });
   }
   const totalRow = `${padColumn("Total do DAS", 14)}`
-    + `${padColumn(formatPercentText(value.totalEffectiveRate), 18)}`
+    + `${padColumn(formatPercentText(value.totalEffectiveRate, 2), 18)}`
     + formatCents(value.totalDasCents);
   pushWrappedLine(lines, totalRow, {
     font: "F2",
@@ -1229,12 +1229,12 @@ function buildXlsxSheets(value: SimulationValue): XlsxSheet[] {
     headerRow("Tributo", "Aliquota efetiva", "Valor no DAS"),
     ...TAXES.map((tax) => [
       TAX_LABELS[tax],
-      formatPercentText(value.effectiveRateByTax[tax]),
+      formatPercentText(value.effectiveRateByTax[tax], 2),
       formatCents(value.byTaxCents[tax]),
     ]),
     [
       cell("Total do DAS", XLSX_STYLES.total),
-      cell(formatPercentText(value.totalEffectiveRate), XLSX_STYLES.total),
+      cell(formatPercentText(value.totalEffectiveRate, 2), XLSX_STYLES.total),
       cell(formatCents(value.totalDasCents), XLSX_STYLES.total),
     ],
     [],
@@ -1318,7 +1318,7 @@ function taxRows(value: SimulationValue): string {
     const taxValue = value.byTaxCents[tax];
     return `<tr>
       <td>${TAX_LABELS[tax]}</td>
-      <td class="${taxValue === 0 ? "muted" : ""}">${formatPercentText(value.effectiveRateByTax[tax])}</td>
+      <td class="${taxValue === 0 ? "muted" : ""}">${formatPercentText(value.effectiveRateByTax[tax], 2)}</td>
       <td class="${taxValue === 0 ? "muted" : ""}">${formatCents(taxValue)}</td>
     </tr>`;
   }).join("");
@@ -1326,7 +1326,7 @@ function taxRows(value: SimulationValue): string {
     <thead><tr><th>Tributo</th><th>Alíq. efetiva</th><th>Valor no DAS</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td>Total do DAS</td>
-      <td>${formatPercentText(value.totalEffectiveRate)}</td>
+      <td>${formatPercentText(value.totalEffectiveRate, 2)}</td>
       <td>${formatCents(value.totalDasCents)}</td></tr></tfoot>
   </table>`;
 }

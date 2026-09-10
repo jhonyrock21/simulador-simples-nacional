@@ -71,6 +71,7 @@ describe("formatacao", () => {
 
   it("formata aliquotas e trata nulo", () => {
     expect(formatPercentText("0.17510", 4)).toBe("17.5100%");
+    expect(formatPercentText("0.097113", 2)).toBe("9.71%");
     expect(formatPercentText(null)).toBe("-");
   });
 });
